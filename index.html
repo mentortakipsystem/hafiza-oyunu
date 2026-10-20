@@ -1,0 +1,475 @@
+<!DOCTYPE html>
+<html lang="tr" dir="ltr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Hafıza Oyunu — Arapça Harfler</title>
+<link href="https://fonts.googleapis.com/css2?family=Amiri:wght@400;700&display=swap" rel="stylesheet">
+<style>
+:root {
+  --bg: #0f0f0f;
+  --surface: #1a1a1a;
+  --card-back: #1e293b;
+  --card-front: #fef3c7;
+  --gold: #d4a843;
+  --gold-dim: #8b7230;
+  --text: #e8e0d0;
+  --text-muted: #8a8070;
+  --success: #4ade80;
+  --star: #fbbf24;
+  --star-empty: #374151;
+  --radius: 12px;
+}
+
+* { margin: 0; padding: 0; box-sizing: border-box; }
+
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: system-ui, -apple-system, sans-serif;
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 16px;
+}
+
+h1 {
+  font-family: 'Amiri', serif;
+  font-size: 1.8rem;
+  color: var(--gold);
+  margin-bottom: 4px;
+  text-align: center;
+}
+
+.subtitle {
+  color: var(--text-muted);
+  font-size: 0.85rem;
+  margin-bottom: 16px;
+}
+
+/* Difficulty selector */
+.difficulty {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 16px;
+  flex-wrap: wrap;
+  justify-content: center;
+}
+
+.difficulty button {
+  background: var(--surface);
+  border: 2px solid var(--card-back);
+  color: var(--text);
+  padding: 8px 20px;
+  border-radius: var(--radius);
+  cursor: pointer;
+  font-size: 0.9rem;
+  transition: all 0.2s;
+}
+
+.difficulty button:hover {
+  border-color: var(--gold-dim);
+}
+
+.difficulty button.active {
+  border-color: var(--gold);
+  color: var(--gold);
+  background: #1e1a10;
+}
+
+/* Stats bar */
+.stats {
+  display: flex;
+  gap: 24px;
+  margin-bottom: 16px;
+  font-size: 0.95rem;
+  color: var(--text-muted);
+}
+
+.stats span {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.stats .value {
+  color: var(--text);
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+
+/* Game board */
+.board {
+  display: grid;
+  gap: 10px;
+  max-width: 500px;
+  width: 100%;
+  perspective: 800px;
+}
+
+.board.cols-4 { grid-template-columns: repeat(4, 1fr); }
+.board.cols-6 { grid-template-columns: repeat(6, 1fr); }
+
+/* Card */
+.card {
+  aspect-ratio: 3/4;
+  cursor: pointer;
+  position: relative;
+  transform-style: preserve-3d;
+  transition: transform 0.5s ease;
+}
+
+.card.flipped { transform: rotateY(180deg); }
+.card.matched { pointer-events: none; }
+.card.matched .front { background: #1a2e1a; border-color: var(--success); }
+
+.card .front,
+.card .back {
+  position: absolute;
+  inset: 0;
+  border-radius: var(--radius);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  backface-visibility: hidden;
+  border: 2px solid transparent;
+}
+
+.card .back {
+  background: var(--card-back);
+  border-color: #2d3a4d;
+}
+
+.card .back-pattern {
+  width: 60%;
+  height: 60%;
+  border: 2px solid #3d4a5d;
+  border-radius: 50%;
+  position: relative;
+}
+
+.card .back-pattern::before,
+.card .back-pattern::after {
+  content: '';
+  position: absolute;
+  inset: 15%;
+  border: 1.5px solid #3d4a5d;
+  border-radius: 50%;
+}
+
+.card .back-pattern::after {
+  inset: 30%;
+}
+
+.card .front {
+  background: var(--card-front);
+  transform: rotateY(180deg);
+}
+
+.card .letter {
+  font-family: 'Amiri', serif;
+  font-size: 2.2rem;
+  color: #1a1a1a;
+  line-height: 1;
+  font-weight: 700;
+}
+
+/* Result modal */
+.overlay {
+  display: none;
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.7);
+  z-index: 10;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+}
+
+.overlay.show { display: flex; }
+
+.modal {
+  background: var(--surface);
+  border: 2px solid var(--gold-dim);
+  border-radius: 16px;
+  padding: 32px;
+  text-align: center;
+  max-width: 360px;
+  width: 100%;
+}
+
+.modal h2 {
+  font-family: 'Amiri', serif;
+  color: var(--gold);
+  font-size: 1.6rem;
+  margin-bottom: 16px;
+}
+
+.modal .stars {
+  font-size: 2rem;
+  margin-bottom: 12px;
+}
+
+.modal .result-stats {
+  color: var(--text-muted);
+  font-size: 0.9rem;
+  margin-bottom: 8px;
+}
+
+.modal .best-label {
+  color: var(--gold-dim);
+  font-size: 0.8rem;
+  margin-bottom: 20px;
+}
+
+.modal button {
+  background: var(--gold);
+  color: #111;
+  border: none;
+  padding: 10px 28px;
+  border-radius: var(--radius);
+  font-size: 1rem;
+  cursor: pointer;
+  font-weight: 600;
+  transition: background 0.2s;
+}
+
+.modal button:hover { background: #e0b84d; }
+
+/* Best score */
+.best-score {
+  margin-top: 12px;
+  font-size: 0.8rem;
+  color: var(--text-muted);
+  min-height: 1.2em;
+}
+
+@media (max-width: 400px) {
+  h1 { font-size: 1.4rem; }
+  .card .letter { font-size: 1.6rem; }
+  .board { gap: 6px; }
+}
+</style>
+</head>
+<body>
+
+<h1>حروف — Hafıza Oyunu</h1>
+<p class="subtitle">Arapça harfleri eşleştir</p>
+
+<div class="difficulty">
+  <button data-level="easy" class="active">Kolay (4×3)</button>
+  <button data-level="medium">Orta (4×4)</button>
+  <button data-level="hard">Zor (6×4)</button>
+</div>
+
+<div class="stats">
+  <span>Hamle: <span class="value" id="moves">0</span></span>
+  <span>Süre: <span class="value" id="timer">0:00</span></span>
+</div>
+
+<div class="board" id="board"></div>
+
+<p class="best-score" id="bestScore"></p>
+
+<div class="overlay" id="overlay">
+  <div class="modal">
+    <h2>تبريك — Tebrikler!</h2>
+    <div class="stars" id="modalStars"></div>
+    <p class="result-stats" id="modalStats"></p>
+    <p class="best-label" id="modalBest"></p>
+    <button id="playAgain">Tekrar Oyna</button>
+  </div>
+</div>
+
+<script>
+const LETTERS = [
+  'ا','ب','ت','ث','ج','ح','خ','د','ذ','ر','ز','س',
+  'ش','ص','ض','ط','ظ','ع','غ','ف','ق','ك','ل','م',
+  'ن','ه','و','ي'
+];
+
+const LEVELS = {
+  easy:   { cols: 4, rows: 3, pairs: 6 },
+  medium: { cols: 4, rows: 4, pairs: 8 },
+  hard:   { cols: 6, rows: 4, pairs: 12 }
+};
+
+let currentLevel = 'easy';
+let cards = [];
+let flippedCards = [];
+let matchedPairs = 0;
+let totalPairs = 0;
+let moves = 0;
+let timerInterval = null;
+let seconds = 0;
+let locked = false;
+
+const boardEl = document.getElementById('board');
+const movesEl = document.getElementById('moves');
+const timerEl = document.getElementById('timer');
+const overlayEl = document.getElementById('overlay');
+const bestScoreEl = document.getElementById('bestScore');
+
+document.querySelectorAll('.difficulty button').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelector('.difficulty .active').classList.remove('active');
+    btn.classList.add('active');
+    currentLevel = btn.dataset.level;
+    startGame();
+  });
+});
+
+document.getElementById('playAgain').addEventListener('click', () => {
+  overlayEl.classList.remove('show');
+  startGame();
+});
+
+function shuffle(arr) {
+  for (let i = arr.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [arr[i], arr[j]] = [arr[j], arr[i]];
+  }
+  return arr;
+}
+
+function startGame() {
+  clearInterval(timerInterval);
+  const level = LEVELS[currentLevel];
+  totalPairs = level.pairs;
+  matchedPairs = 0;
+  moves = 0;
+  seconds = 0;
+  locked = false;
+  flippedCards = [];
+  movesEl.textContent = '0';
+  timerEl.textContent = '0:00';
+
+  const selected = shuffle([...LETTERS]).slice(0, level.pairs);
+  cards = shuffle([...selected, ...selected]);
+
+  boardEl.className = 'board cols-' + level.cols;
+  boardEl.innerHTML = '';
+
+  cards.forEach((letter, i) => {
+    const card = document.createElement('div');
+    card.className = 'card';
+    card.dataset.index = i;
+    card.dataset.letter = letter;
+    card.innerHTML = `
+      <div class="back"><div class="back-pattern"></div></div>
+      <div class="front"><span class="letter">${letter}</span></div>
+    `;
+    card.addEventListener('click', () => flipCard(card));
+    boardEl.appendChild(card);
+  });
+
+  showBestScore();
+  startTimer();
+}
+
+function startTimer() {
+  clearInterval(timerInterval);
+  timerInterval = setInterval(() => {
+    seconds++;
+    const m = Math.floor(seconds / 60);
+    const s = seconds % 60;
+    timerEl.textContent = m + ':' + String(s).padStart(2, '0');
+  }, 1000);
+}
+
+function flipCard(card) {
+  if (locked) return;
+  if (card.classList.contains('flipped')) return;
+  if (card.classList.contains('matched')) return;
+  if (flippedCards.length >= 2) return;
+
+  card.classList.add('flipped');
+  flippedCards.push(card);
+
+  if (flippedCards.length === 2) {
+    moves++;
+    movesEl.textContent = moves;
+    checkMatch();
+  }
+}
+
+function checkMatch() {
+  const [a, b] = flippedCards;
+  if (a.dataset.letter === b.dataset.letter) {
+    a.classList.add('matched');
+    b.classList.add('matched');
+    flippedCards = [];
+    matchedPairs++;
+    if (matchedPairs === totalPairs) endGame();
+  } else {
+    locked = true;
+    setTimeout(() => {
+      a.classList.remove('flipped');
+      b.classList.remove('flipped');
+      flippedCards = [];
+      locked = false;
+    }, 800);
+  }
+}
+
+function getStars(moves, pairs) {
+  const ratio = moves / pairs;
+  if (ratio <= 1.5) return 3;
+  if (ratio <= 2.5) return 2;
+  return 1;
+}
+
+function endGame() {
+  clearInterval(timerInterval);
+  const stars = getStars(moves, totalPairs);
+  const starStr = '★'.repeat(stars) + '☆'.repeat(3 - stars);
+
+  document.getElementById('modalStars').textContent = starStr;
+  document.getElementById('modalStars').style.color = 'var(--star)';
+  document.getElementById('modalStats').textContent =
+    moves + ' hamle · ' + timerEl.textContent + ' süre';
+
+  const key = 'hafiza_best_' + currentLevel;
+  let bestText = '';
+  try {
+    const prev = JSON.parse(localStorage.getItem(key));
+    if (!prev || moves < prev.moves) {
+      localStorage.setItem(key, JSON.stringify({ moves, seconds, stars }));
+      bestText = 'Yeni rekor!';
+    } else {
+      bestText = 'En iyi: ' + prev.moves + ' hamle';
+    }
+  } catch (e) {
+    try {
+      localStorage.setItem(key, JSON.stringify({ moves, seconds, stars }));
+      bestText = 'Yeni rekor!';
+    } catch (_) {}
+  }
+
+  document.getElementById('modalBest').textContent = bestText;
+  overlayEl.classList.add('show');
+  showBestScore();
+}
+
+function showBestScore() {
+  const key = 'hafiza_best_' + currentLevel;
+  try {
+    const data = JSON.parse(localStorage.getItem(key));
+    if (data) {
+      const m = Math.floor(data.seconds / 60);
+      const s = data.seconds % 60;
+      bestScoreEl.textContent =
+        'En iyi: ' + data.moves + ' hamle · ' + m + ':' + String(s).padStart(2, '0');
+    } else {
+      bestScoreEl.textContent = '';
+    }
+  } catch (e) {
+    bestScoreEl.textContent = '';
+  }
+}
+
+startGame();
+</script>
+</body>
+</html>
